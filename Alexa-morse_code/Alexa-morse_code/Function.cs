@@ -7,9 +7,60 @@ using Amazon.Lambda.Core;
 using Alexa.NET.Response;
 using Alexa.NET.Request.Type;
 using Alexa.NET.Request;
+using Alexa.NET.Response.Directive;
+using AudioSkillSample.Assets;
+using Alexa.NET;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
+
+namespace AudioSkillSample.Assets
+{
+    public class AudioAssets
+    {
+        public static AudioItem[] GetSampleAudioFiles()
+        {
+            AudioItem[] returnAudio = new AudioItem[5];
+
+            returnAudio[0] = (new AudioItem()
+            {
+                Title = "50ms",
+                Url = "https://s3.eu-central-1.amazonaws.com/morseitech/50ms.mp3"
+            }
+            );
+            returnAudio[1] = (new AudioItem()
+            {
+                Title = "50ms_silence",
+                Url = "https://s3.eu-central-1.amazonaws.com/morseitech/50ms_silence.mp3"
+            });
+            returnAudio[2] = (new AudioItem()
+            {
+                Title = "150ms",
+                Url = "https://s3.eu-central-1.amazonaws.com/morseitech/150ms.mp3"
+            }
+            );
+            returnAudio[3] = (new AudioItem()
+            {
+                Title = "150ms_silence",
+                Url = "https://s3.eu-central-1.amazonaws.com/morseitech/150ms_silence.mp3"
+            });
+            returnAudio[4] = (new AudioItem()
+            {
+                Title = "350ms",
+                Url = "https://s3.eu-central-1.amazonaws.com/morseitech/350ms.mp3"
+            }
+            );
+
+            return returnAudio;
+        }
+    }
+
+    public class AudioItem
+    {
+        public string Title { get; set; }
+        public string Url { get; set; }
+    }
+}
 
 namespace Alexa_morse_code
 {
@@ -39,6 +90,7 @@ namespace Alexa_morse_code
         /// <param name="context"></param>
         /// <returns></returns>
         public List<Messages> GetResources()
+        // Actually needed? Maybe without List, but raw object.
         {
             List<Messages> resources = new List<Messages>();
             Messages enUSResource = new Messages("en-US");
@@ -52,7 +104,7 @@ namespace Alexa_morse_code
             return resources;
         }
 
-        public /*string*/ SkillResponse FunctionHandler(SkillRequest input, ILambdaContext context)
+        public SkillResponse FunctionHandler(SkillRequest input, ILambdaContext context)
         {
             SkillResponse response = new SkillResponse();
             response.Response.ShouldEndSession = false;
@@ -88,15 +140,12 @@ namespace Alexa_morse_code
                         innerResponse = new PlainTextOutputSpeech();
                         (innerResponse as PlainTextOutputSpeech).Text = GetResources()[0].HelpMessage;
                         break;
-                    case "GetFactIntent":
+                    case "TranslateIntent": //TODO: Check if working
                         log.LogLine($"GetFactIntent sent: send new fact");
                         innerResponse = new PlainTextOutputSpeech();
-                        (innerResponse as PlainTextOutputSpeech).Text = ""; //TODO
-                        break;
-                    case "GetNewFactIntent":
-                        log.LogLine($"GetFactIntent sent: send new fact");
-                        innerResponse = new PlainTextOutputSpeech();
-                        (innerResponse as PlainTextOutputSpeech).Text = ""; //TODO
+                        var morseRequested = intentRequest.Intent.Slots["Literal"].Value;
+                        (innerResponse as PlainTextOutputSpeech).Text = GetResources()[0].GetMorseCode;
+                        Output(Translate(ToArray(morseRequested)));
                         break;
                     default:
                         log.LogLine($"Unknown intent: " + intentRequest.Intent.Name);
@@ -122,7 +171,7 @@ namespace Alexa_morse_code
             for(int i = 0;i < letters.Length;i++)
             {
                 List<char> temp = new List<char>();
-                //Get translation from letters[i]
+                //TODO: Get translation from letters[i] and add to temp<char>
                 //DB tutorial: http://matthiasshapiro.com/2017/03/21/tutorial-dynamodb-in-net/
                 for (int j = 0;j < temp.Capacity; j++)
                 {
@@ -147,8 +196,30 @@ namespace Alexa_morse_code
             return morse;
         }
 
-        public void Output(char[] input)
+        public void Output(List<char> input)
         {
+            var audioItems = AudioAssets.GetSampleAudioFiles();
+            for (int i = 0; i < input.Capacity; i++)
+            {
+                switch (input.ElementAt(i))
+                {
+                    case '.':
+                        ResponseBuilder.AudioPlayerPlay(PlayBehavior.Enqueue, audioItems[0].Url, audioItems[0].Title); //50ms
+                        break;
+                    case ',':
+                        ResponseBuilder.AudioPlayerPlay(PlayBehavior.Enqueue, audioItems[1].Url, audioItems[1].Title); //50ms_silence
+                        break;
+                    case '-':
+                        ResponseBuilder.AudioPlayerPlay(PlayBehavior.Enqueue, audioItems[2].Url, audioItems[2].Title); //150ms
+                        break;
+                    case '+':
+                        ResponseBuilder.AudioPlayerPlay(PlayBehavior.Enqueue, audioItems[3].Url, audioItems[3].Title); //150ms_silence
+                        break;
+                    case '|':
+                        ResponseBuilder.AudioPlayerPlay(PlayBehavior.Enqueue, audioItems[4].Url, audioItems[4].Title); //350ms_silence
+                        break;
+                }
+            }
             //TODO
         }
     }
