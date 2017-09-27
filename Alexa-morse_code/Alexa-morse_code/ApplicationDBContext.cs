@@ -14,7 +14,5 @@ namespace Alexamorse_code
 {
     public class ApplicationDBContext
     {
-        var credentials = new BasicAWSCredentials(accessKey, secretKey);
-        var client = new AmazonDynamoDBClient(credentials, RegionEndpoint.EUCentral1);
     }
 }
